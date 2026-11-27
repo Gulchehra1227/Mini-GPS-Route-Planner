@@ -2,6 +2,8 @@
 
 A Python Data Structures 2 project that models a university campus map as a weighted graph and compares graph traversal, single-source shortest path, and all-pairs shortest path algorithms alongside priority-queue and hash-table data structures.
 
+**Live Web Demo:** https://mini-gps-route-planner.vercel.app
+
 ## Project Structure
 
 * `main.py` — Main menu entry point to launch the interactive CLI route planner or run benchmarks.
