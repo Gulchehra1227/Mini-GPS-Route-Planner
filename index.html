@@ -1,76 +1,421 @@
-import tkinter as tk
-from tkinter import ttk
-from algorithms import (
-    bellman_ford,
-    bfs_fewest_stops,
-    dfs_reachable,
-    dijkstra_heap,
-    floyd_warshall,
-)
-from graph import build_sample_campus
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mini Campus GPS Route Planner — uLoop Style</title>
+  <style>
+    :root {
+      --bg: #f4f6fb;
+      --card: #ffffff;
+      --ink: #141923;
+      --muted: #5c667a;
+      --accent: #2563eb;
+      --accent-soft: #eff6ff;
+      --border: #e2e8f0;
+      --ok: #0f766e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.5;
+    }
+    header {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.05rem;
+    }
+    .pill {
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 999px;
+    }
+    main {
+      max-width: 1080px;
+      margin: 24px auto;
+      padding: 0 20px 40px;
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 820px) {
+      main { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+    }
+    h2 {
+      margin: 0 0 14px;
+      font-size: 1rem;
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    select, button {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      font-size: 0.92rem;
+      font-family: inherit;
+    }
+    select {
+      background: #fff;
+      color: var(--ink);
+      margin-bottom: 14px;
+    }
+    .btn-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    button.primary {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button.primary:hover { background: #1d4ed8; }
+    button.secondary {
+      background: #fff;
+      color: var(--ink);
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button.secondary:hover { background: #f8fafc; }
+    .status {
+      margin-top: 10px;
+      font-size: 0.8rem;
+      color: var(--ok);
+      min-height: 18px;
+    }
+    .results {
+      display: grid;
+      gap: 12px;
+    }
+    .algo-item {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      background: #fcfdff;
+    }
+    .algo-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 0.92rem;
+      margin-bottom: 4px;
+    }
+    .metric {
+      font-size: 0.8rem;
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .path {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.84rem;
+      color: var(--ink);
+      word-break: break-word;
+    }
+    .sub {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    svg {
+      width: 100%;
+      height: 280px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-top: 14px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span>Mini Campus GPS Route Planner</span>
+      <span class="pill">uLoop Web Edition</span>
+    </div>
+    <div class="sub" style="margin:0;">BFS • DFS • Dijkstra • Bellman-Ford • Floyd-Warshall</div>
+  </header>
 
+  <main>
+    <section class="card">
+      <h2>Plan Campus Route</h2>
+      <label for="startSelect">Start Location</label>
+      <select id="startSelect"></select>
 
-class CampusGPSApp:
-    def __init__(self, root: tk.Tk) -> None:
-        self.root = root
-        self.root.title("Mini Campus GPS Route Planner")
-        self.root.geometry("620x420")
+      <label for="goalSelect">Destination</label>
+      <select id="goalSelect"></select>
 
-        self.campus = build_sample_campus()
-        self.nodes, self.all_pairs = floyd_warshall(self.campus)
-        self.node_idx = {name: i for i, name in enumerate(self.nodes)}
+      <div class="btn-row">
+        <button class="primary" id="findBtn">Find Route</button>
+        <button class="secondary" id="shareBtn" title="Copy shareable route URL">Share Link</button>
+      </div>
+      <div class="status" id="statusMsg"></div>
 
-        controls = ttk.Frame(root, padding=12)
-        controls.pack(fill=tk.X)
+      <svg id="campusMap" viewBox="0 0 560 280" aria-label="Campus graph map"></svg>
+    </section>
 
-        ttk.Label(controls, text="Start:").grid(row=0, column=0, padx=(0, 6), sticky=tk.W)
-        self.start_var = tk.StringVar(value="Main Gate")
-        ttk.Combobox(controls, textvariable=self.start_var, values=self.nodes, state="readonly", width=22).grid(
-            row=0, column=1, padx=(0, 12)
-        )
+    <section class="card">
+      <h2 id="routeTitle">Algorithm Comparison</h2>
+      <div class="results" id="resultsList"></div>
+    </section>
+  </main>
 
-        ttk.Label(controls, text="Destination:").grid(row=0, column=2, padx=(0, 6), sticky=tk.W)
-        self.goal_var = tk.StringVar(value="Canteen")
-        ttk.Combobox(controls, textvariable=self.goal_var, values=self.nodes, state="readonly", width=22).grid(
-            row=0, column=3, padx=(0, 12)
-        )
+  <script>
+    const NODES = {
+      "Main Gate": { x: 65, y: 220 },
+      "Library": { x: 185, y: 145 },
+      "CS Building": { x: 310, y: 75 },
+      "Science Hall": { x: 325, y: 205 },
+      "Canteen": { x: 475, y: 140 }
+    };
 
-        ttk.Button(controls, text="Find Route", command=self.find_route).grid(row=0, column=4)
+    const EDGES = [
+      ["Main Gate", "Library", 120],
+      ["Main Gate", "Science Hall", 180],
+      ["Library", "CS Building", 95],
+      ["Library", "Science Hall", 85],
+      ["CS Building", "Canteen", 140],
+      ["Science Hall", "Canteen", 110],
+      ["Library", "Canteen", 240]
+    ];
 
-        self.output = tk.Text(root, wrap=tk.WORD, padx=12, pady=12, font=("Consolas", 10))
-        self.output.pack(fill=tk.BOTH, expand=True, padx=12, pady=(0, 12))
+    const names = Object.keys(NODES);
+    const adj = Object.fromEntries(names.map(n => [n, []]));
+    for (const [u, v, w] of EDGES) {
+      adj[u].push({ to: v, w });
+      adj[v].push({ to: u, w });
+    }
 
-        self.find_route()
+    function bfsFewestStops(start, goal) {
+      const queue = [[start, [start]]];
+      const visited = new Set([start]);
+      while (queue.length) {
+        const [curr, path] = queue.shift();
+        if (curr === goal) return { path, stops: path.length - 1 };
+        for (const edge of adj[curr]) {
+          if (!visited.has(edge.to)) {
+            visited.add(edge.to);
+            queue.push([edge.to, [...path, edge.to]]);
+          }
+        }
+      }
+      return { path: [], stops: -1 };
+    }
 
-    def find_route(self) -> None:
-        start = self.start_var.get()
-        goal = self.goal_var.get()
+    function dfsReachable(start) {
+      const seen = new Set();
+      function walk(u) {
+        seen.add(u);
+        for (const edge of adj[u]) {
+          if (!seen.has(edge.to)) walk(edge.to);
+        }
+      }
+      walk(start);
+      return [...seen];
+    }
 
-        bfs_path, stops = bfs_fewest_stops(self.campus, start, goal)
-        dij_path, dij_cost = dijkstra_heap(self.campus, start, goal)
-        bf_path, bf_cost = bellman_ford(self.campus, start, goal)
-        fw_cost = self.all_pairs[self.node_idx[start]][self.node_idx[goal]]
-        reachable_count = len(dfs_reachable(self.campus, start))
+    function dijkstra(start, goal) {
+      const dist = Object.fromEntries(names.map(n => [n, Infinity]));
+      const prev = Object.fromEntries(names.map(n => [n, null]));
+      const visited = new Set();
+      dist[start] = 0;
 
-        lines = [
-            f"Route: {start} -> {goal}",
-            "-" * 48,
-            f"BFS (fewest stops):    {' -> '.join(bfs_path)} ({stops} stops)",
-            f"Dijkstra (min-heap):   {' -> '.join(dij_path)} ({dij_cost:.1f} m)",
-            f"Bellman-Ford check:    {' -> '.join(bf_path)} ({bf_cost:.1f} m)",
-            f"Floyd-Warshall lookup: {fw_cost:.1f} m",
-            f"DFS reachable places:  {reachable_count}",
-        ]
+      while (visited.size < names.length) {
+        let u = null;
+        for (const n of names) {
+          if (!visited.has(n) && (u === null || dist[n] < dist[u])) u = n;
+        }
+        if (u === null || dist[u] === Infinity) break;
+        visited.add(u);
+        for (const { to, w } of adj[u]) {
+          if (dist[u] + w < dist[to]) {
+            dist[to] = dist[u] + w;
+            prev[to] = u;
+          }
+        }
+      }
+      const path = [];
+      for (let curr = goal; curr !== null; curr = prev[curr]) path.unshift(curr);
+      return { path: path[0] === start ? path : [], cost: dist[goal] };
+    }
 
-        self.output.delete("1.0", tk.END)
-        self.output.insert(tk.END, "\n".join(lines))
+    function bellmanFord(start, goal) {
+      const dist = Object.fromEntries(names.map(n => [n, Infinity]));
+      const prev = Object.fromEntries(names.map(n => [n, null]));
+      dist[start] = 0;
 
+      for (let i = 0; i < names.length - 1; i++) {
+        for (const [u, v, w] of EDGES) {
+          if (dist[u] + w < dist[v]) { dist[v] = dist[u] + w; prev[v] = u; }
+          if (dist[v] + w < dist[u]) { dist[u] = dist[v] + w; prev[u] = v; }
+        }
+      }
+      const path = [];
+      for (let curr = goal; curr !== null; curr = prev[curr]) path.unshift(curr);
+      return { path: path[0] === start ? path : [], cost: dist[goal] };
+    }
 
-def run_ui() -> None:
-    root = tk.Tk()
-    CampusGPSApp(root)
-    root.mainloop()
+    function floydWarshall() {
+      const idx = Object.fromEntries(names.map((n, i) => [n, i]));
+      const m = names.length;
+      const d = Array.from({ length: m }, (_, i) =>
+        Array.from({ length: m }, (_, j) => (i === j ? 0 : Infinity))
+      );
+      for (const [u, v, w] of EDGES) {
+        d[idx[u]][idx[v]] = Math.min(d[idx[u]][idx[v]], w);
+        d[idx[v]][idx[u]] = Math.min(d[idx[v]][idx[u]], w);
+      }
+      for (let k = 0; k < m; k++) {
+        for (let i = 0; i < m; i++) {
+          for (let j = 0; j < m; j++) {
+            if (d[i][k] + d[k][j] < d[i][j]) d[i][j] = d[i][k] + d[k][j];
+          }
+        }
+      }
+      return { idx, dist: d };
+    }
 
+    const fw = floydWarshall();
+    const startSelect = document.getElementById("startSelect");
+    const goalSelect = document.getElementById("goalSelect");
+    const resultsList = document.getElementById("resultsList");
+    const routeTitle = document.getElementById("routeTitle");
+    const statusMsg = document.getElementById("statusMsg");
+    const svg = document.getElementById("campusMap");
 
-if __name__ == "__main__":
-    run_ui()
+    for (const name of names) {
+      startSelect.add(new Option(name, name));
+      goalSelect.add(new Option(name, name));
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    startSelect.value = names.includes(params.get("start")) ? params.get("start") : "Main Gate";
+    goalSelect.value = names.includes(params.get("goal")) ? params.get("goal") : "Canteen";
+
+    function renderMap(highlightPath) {
+      const activeEdges = new Set();
+      for (let i = 0; i < highlightPath.length - 1; i++) {
+        activeEdges.add(`${highlightPath[i]}--${highlightPath[i + 1]}`);
+        activeEdges.add(`${highlightPath[i + 1]}--${highlightPath[i]}`);
+      }
+      const activeNodes = new Set(highlightPath);
+
+      let html = "";
+      for (const [u, v, w] of EDGES) {
+        const a = NODES[u], b = NODES[v];
+        const hot = activeEdges.has(`${u}--${v}`);
+        html += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${hot ? "#2563eb" : "#cbd5e1"}" stroke-width="${hot ? 3.5 : 2}" />`;
+        html += `<text x="${(a.x + b.x) / 2}" y="${(a.y + b.y) / 2 - 5}" font-size="10" fill="#64748b" text-anchor="middle">${w}m</text>`;
+      }
+      for (const [name, pos] of Object.entries(NODES)) {
+        const hot = activeNodes.has(name);
+        html += `<circle cx="${pos.x}" cy="${pos.y}" r="8" fill="${hot ? "#2563eb" : "#ffffff"}" stroke="#2563eb" stroke-width="2.5" />`;
+        html += `<text x="${pos.x}" y="${pos.y + 21}" font-size="11" font-weight="${hot ? "700" : "500"}" fill="#141923" text-anchor="middle">${name}</text>`;
+      }
+      svg.innerHTML = html;
+    }
+
+    function updateRoute(syncUrl = true) {
+      const start = startSelect.value;
+      const goal = goalSelect.value;
+      routeTitle.textContent = `Route: ${start} → ${goal}`;
+
+      if (syncUrl) {
+        const url = new URL(window.location.href);
+        url.searchParams.set("start", start);
+        url.searchParams.set("goal", goal);
+        window.history.replaceState({}, "", url);
+      }
+
+      const bfs = bfsFewestStops(start, goal);
+      const dij = dijkstra(start, goal);
+      const bf = bellmanFord(start, goal);
+      const fwCost = fw.dist[fw.idx[start]][fw.idx[goal]];
+      const reachable = dfsReachable(start);
+
+      resultsList.innerHTML = `
+        <div class="algo-item">
+          <div class="algo-head"><span>BFS (Fewest Stops)</span><span class="metric">${bfs.stops} stops</span></div>
+          <div class="path">${bfs.path.join(" → ") || "No path"}</div>
+          <div class="sub">Unweighted hop-count traversal</div>
+        </div>
+        <div class="algo-item">
+          <div class="algo-head"><span>Dijkstra Shortest Path</span><span class="metric">${dij.cost.toFixed(1)} m</span></div>
+          <div class="path">${dij.path.join(" → ") || "No path"}</div>
+          <div class="sub">Minimum distance for non-negative edge weights</div>
+        </div>
+        <div class="algo-item">
+          <div class="algo-head"><span>Bellman-Ford Verification</span><span class="metric">${bf.cost.toFixed(1)} m</span></div>
+          <div class="path">${bf.path.join(" → ") || "No path"}</div>
+          <div class="sub">Edge-relaxation shortest path check</div>
+        </div>
+        <div class="algo-item">
+          <div class="algo-head"><span>Floyd-Warshall Matrix Lookup</span><span class="metric">${fwCost.toFixed(1)} m</span></div>
+          <div class="path">All-pairs shortest distance table</div>
+          <div class="sub">Precomputed O(V³) distance matrix</div>
+        </div>
+        <div class="algo-item">
+          <div class="algo-head"><span>DFS Reachability</span><span class="metric">${reachable.length} places</span></div>
+          <div class="path">${reachable.join(" • ")}</div>
+          <div class="sub">Connected campus locations reachable from ${start}</div>
+        </div>
+      `;
+      renderMap(dij.path.length ? dij.path : bfs.path);
+    }
+
+    document.getElementById("findBtn").addEventListener("click", () => {
+      statusMsg.textContent = "";
+      updateRoute(true);
+    });
+    startSelect.addEventListener("change", () => { statusMsg.textContent = ""; updateRoute(true); });
+    goalSelect.addEventListener("change", () => { statusMsg.textContent = ""; updateRoute(true); });
+
+    document.getElementById("shareBtn").addEventListener("click", async () => {
+      updateRoute(true);
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        statusMsg.textContent = "Shareable route URL copied!";
+      } catch {
+        statusMsg.textContent = window.location.href;
+      }
+    });
+
+    updateRoute(false);
+  </script>
+</body>
+</html>
